@@ -216,6 +216,7 @@ COPY (SELECT * FROM places_export WHERE 1=1 __SPATIAL_FILTER__) TO '__OUTPUT_PAR
         'compiler': 'osm-pois (https://github.com/krizleebear/osm-pois)',
         'compiler_version': '__BUILD_VERSION__',
         'country_code': '__COUNTRY_CODE__',
-        'exported_at': '__EXPORT_TIMESTAMP__'
+        'exported_at': '__EXPORT_TIMESTAMP__',
+        'osm_data_timestamp': '__OSM_DATA_TIMESTAMP__'
     }
 );

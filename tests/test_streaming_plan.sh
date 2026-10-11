@@ -57,6 +57,7 @@ sed \
   -e "s|__REPO_ROOT__|${REPO_ROOT}|g" \
   -e "s|__BUILD_VERSION__|test|g" \
   -e "s|__EXPORT_TIMESTAMP__|1970-01-01T00:00:00Z|g" \
+  -e "s|__OSM_DATA_TIMESTAMP__|1970-01-01T00:00:00Z|g" \
   -e "s|__TEMP_DIR__|${WORK_DIR}|g" \
   -e "s|__SPATIAL_FILTER__||g" \
   -e "s|__MAX_OBJECT_SIZE__|67108864|g" \

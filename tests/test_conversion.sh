@@ -319,7 +319,8 @@ SELECT
     count(CASE WHEN key = 'compiler' AND CAST(value AS VARCHAR) LIKE '%osm-pois%' THEN 1 END),
     count(CASE WHEN key = 'country_code' AND CAST(value AS VARCHAR) = 'MC' THEN 1 END),
     count(CASE WHEN key = 'schema_license' AND CAST(value AS VARCHAR) LIKE '%CC-BY-4.0%' THEN 1 END),
-    count(CASE WHEN key = 'schema_attribution' AND CAST(value AS VARCHAR) LIKE '%Overture Maps Foundation%' THEN 1 END)
+    count(CASE WHEN key = 'schema_attribution' AND CAST(value AS VARCHAR) LIKE '%Overture Maps Foundation%' THEN 1 END),
+    count(CASE WHEN key = 'osm_data_timestamp' AND CAST(value AS VARCHAR) IS NOT NULL AND CAST(value AS VARCHAR) != '' THEN 1 END)
 FROM parquet_kv_metadata('$OUTPUT_PARQUET');
 ")
 
@@ -330,9 +331,10 @@ HAS_COMP=$(echo "$META_STATS" | cut -d',' -f4)
 HAS_CC=$(echo "$META_STATS" | cut -d',' -f5)
 HAS_SCHEMA_LIC=$(echo "$META_STATS" | cut -d',' -f6)
 HAS_SCHEMA_ATTR=$(echo "$META_STATS" | cut -d',' -f7)
+HAS_OSM_TS=$(echo "$META_STATS" | cut -d',' -f8)
 
-if [ "$HAS_ATTR" -ne 1 ] || [ "$HAS_LIC" -ne 1 ] || [ "$HAS_SRC" -ne 1 ] || [ "$HAS_COMP" -ne 1 ] || [ "$HAS_CC" -ne 1 ] || [ "$HAS_SCHEMA_LIC" -ne 1 ] || [ "$HAS_SCHEMA_ATTR" -ne 1 ]; then
-    echo "[FAIL] Parquet KV_METADATA validation failed: attribution=$HAS_ATTR, license=$HAS_LIC, source=$HAS_SRC, compiler=$HAS_COMP, country_code=$HAS_CC, schema_license=$HAS_SCHEMA_LIC, schema_attribution=$HAS_SCHEMA_ATTR"
+if [ "$HAS_ATTR" -ne 1 ] || [ "$HAS_LIC" -ne 1 ] || [ "$HAS_SRC" -ne 1 ] || [ "$HAS_COMP" -ne 1 ] || [ "$HAS_CC" -ne 1 ] || [ "$HAS_SCHEMA_LIC" -ne 1 ] || [ "$HAS_SCHEMA_ATTR" -ne 1 ] || [ "$HAS_OSM_TS" -ne 1 ]; then
+    echo "[FAIL] Parquet KV_METADATA validation failed: attribution=$HAS_ATTR, license=$HAS_LIC, source=$HAS_SRC, compiler=$HAS_COMP, country_code=$HAS_CC, schema_license=$HAS_SCHEMA_LIC, schema_attribution=$HAS_SCHEMA_ATTR, osm_data_timestamp=$HAS_OSM_TS"
     exit 1
 fi
 

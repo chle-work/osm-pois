@@ -95,9 +95,9 @@ fi
 
 META=$(duckdb -dark-mode -no-stdin -noheader -csv -c "
 SELECT count(*) FROM parquet_kv_metadata('${CHUNKED_OUT}')
-WHERE key IN ('source', 'license', 'schema_license', 'compiler', 'country_code');" 2>/dev/null | tail -n 1)
-if [ "$META" -ne 5 ]; then
-    echo "[FAIL] Chunked output missing KV_METADATA provenance keys (got $META/5)"
+WHERE key IN ('source', 'license', 'schema_license', 'compiler', 'country_code', 'osm_data_timestamp');" 2>/dev/null | tail -n 1)
+if [ "$META" -ne 6 ]; then
+    echo "[FAIL] Chunked output missing KV_METADATA provenance keys (got $META/6)"
     exit 1
 fi
 

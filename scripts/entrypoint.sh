@@ -32,6 +32,24 @@ echo "[INFO] Input  : $INPUT_PBF ($(du -sh "$INPUT_PBF" | cut -f1))"
 echo "[INFO] Output : $OUTPUT_PARQUET"
 echo "[INFO] Country: ${COUNTRY_CODE:-unknown}"
 START_TIME=$(date +%s)
+EXPORT_TIMESTAMP="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+get_pbf_timestamp() {
+    local pbf="$1"
+    local ts=""
+    if command -v osmium >/dev/null 2>&1; then
+        ts=$(osmium fileinfo -e -g header.option.osmosis_replication_timestamp "$pbf" 2>/dev/null || true)
+        if [ -z "$ts" ]; then
+            ts=$(osmium fileinfo -j "$pbf" 2>/dev/null | python3 -c "import sys, json; print(json.load(sys.stdin).get('header', {}).get('options', {}).get('osmosis_replication_timestamp', ''))" 2>/dev/null || true)
+        fi
+    fi
+    if [ -z "$ts" ] && [ -f "$pbf" ]; then
+        ts=$(python3 -c "import os, sys, datetime; print(datetime.datetime.fromtimestamp(os.path.getmtime(sys.argv[1]), tz=datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))" "$pbf" 2>/dev/null || true)
+    fi
+    echo "${ts:-$EXPORT_TIMESTAMP}"
+}
+
+export OSM_DATA_TIMESTAMP="${OSM_DATA_TIMESTAMP:-$(get_pbf_timestamp "$INPUT_PBF")}"
 
 if [ "$COUNTRY_CODE" = "US" ] && [ -z "$SPATIAL_FILTER" ]; then
     echo "[INFO] US dataset detected. Executing 3-zone spatial partitioning (West, Central, East) for bounded memory execution..."
@@ -92,7 +110,8 @@ if [ "$COUNTRY_CODE" = "US" ] && [ -z "$SPATIAL_FILTER" ]; then
             'compiler': 'osm-pois (https://github.com/krizleebear/osm-pois)',
             'compiler_version': '$BUILD_VERSION',
             'country_code': '$COUNTRY_CODE',
-            'exported_at': '$EXPORT_TIMESTAMP'
+            'exported_at': '$EXPORT_TIMESTAMP',
+            'osm_data_timestamp': '$OSM_DATA_TIMESTAMP'
         }
     );
     "
@@ -278,7 +297,8 @@ python3 "$SCRIPT_DIR/entrypoint.py" \
   --max-object-size "$MAX_OBJECT_SIZE" \
   --chunk-bytes "${OSM_POIS_CHUNK_BYTES:-104857600}" \
   --build-version "$BUILD_VERSION" \
-  --export-timestamp "$EXPORT_TIMESTAMP" &
+  --export-timestamp "$EXPORT_TIMESTAMP" \
+  --osm-data-timestamp "$OSM_DATA_TIMESTAMP" &
 PYTHON_PID=$!
 
 monitor_resources "$PYTHON_PID" "$PYTHON_PID" &

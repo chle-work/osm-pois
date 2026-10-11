@@ -25,6 +25,7 @@ Design invariants (see AGENTS.md):
 
 import argparse
 import io
+import json
 import os
 import re
 import subprocess
@@ -52,6 +53,39 @@ def substitute(sql, tokens):
     for key, value in tokens.items():
         sql = sql.replace(key, value)
     return sql
+
+
+def get_pbf_timestamp(pbf_path):
+    """Extract replication timestamp from OSM PBF header using osmium fileinfo or fallback to mtime."""
+    if pbf_path and os.path.exists(pbf_path):
+        try:
+            res = subprocess.run(
+                ["osmium", "fileinfo", "-e", "-g", "header.option.osmosis_replication_timestamp", pbf_path],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                return res.stdout.strip()
+            res_json = subprocess.run(
+                ["osmium", "fileinfo", "-j", pbf_path],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if res_json.returncode == 0 and res_json.stdout.strip():
+                data = json.loads(res_json.stdout)
+                ts = data.get("header", {}).get("options", {}).get("osmosis_replication_timestamp")
+                if ts:
+                    return ts
+        except Exception:
+            pass
+        try:
+            mtime = os.path.getmtime(pbf_path)
+            return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(mtime))
+        except Exception:
+            pass
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
 def expand_module_reads(sql):
@@ -122,6 +156,7 @@ def parse_args(argv):
     parser.add_argument("--max-object-size", default="67108864", help="maximum_object_size for the JSON reader (bytes)")
     parser.add_argument("--build-version", default="dev", help="Compiler version for KV_METADATA")
     parser.add_argument("--export-timestamp", default="", help="exported_at ISO 8601 timestamp for KV_METADATA")
+    parser.add_argument("--osm-data-timestamp", default="", help="OSM replication cutoff timestamp for KV_METADATA")
     parser.add_argument("--chunk-bytes", default=str(DEFAULT_CHUNK_BYTES), help="Ingest chunk size in bytes")
     return parser.parse_args(argv)
 
@@ -131,6 +166,7 @@ def main(argv=None):
     repo_root = os.path.abspath(args.repo_root)
     chunk_bytes = int(args.chunk_bytes)
     export_timestamp = args.export_timestamp or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    osm_data_timestamp = args.osm_data_timestamp or get_pbf_timestamp(args.input)
 
     # ------------------------------------------------------------------
     # 1. Load the shared production SQL (single source of truth)
@@ -145,6 +181,7 @@ def main(argv=None):
         "__COUNTRY_CODE__": args.country_code,
         "__BUILD_VERSION__": args.build_version,
         "__EXPORT_TIMESTAMP__": export_timestamp,
+        "__OSM_DATA_TIMESTAMP__": osm_data_timestamp,
         "__TEMP_DIR__": args.tmp_dir,
         "__SPATIAL_FILTER__": args.spatial_filter,
         "__MAX_OBJECT_SIZE__": args.max_object_size,
